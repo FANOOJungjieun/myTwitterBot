@@ -19,8 +19,12 @@ api = tweepy.API(auth, wait_on_rate_limit=True)
 
 bot = api.verify_credentials() # 봇의 user obj 반환 
 bot_id = bot.id # 봇 id (고유값, 주소) 
-last_reply_id = 1 # 최근에 답장한 멘션의 id값을 저장, 이후 새로 온 멘션에만 답장한다.
-keywords = ['다이스', '상점'] # 키워드
+timeline_list = api.user_timeline(user_id =bot_id)
+last_reply_id = timeline_list[0].id_str
+# last_reply_id = 1 # 최근에 답장한 멘션의 id값을 저장, 이후 새로 온 멘션에만 답장한다.
+keywords = ['구매', '판매'] # 키워드
+
+#키워드 타입 1 : 주사위 2: 구매 3:판매
 
 # 주의!!! 리트윗과 멘션 합해서 3시간에 300개 가능
 
@@ -57,22 +61,25 @@ def check_keyword(mention_return_length, mention_return):
                 end = mention_text.find(']')
                 
                 if (start != -1 and end != -1) and start<end: # [] 조건 찾기. [, ]가 존재해야 하고, 닫는 괄호가 여는 괄호보다 앞에 있으면 안된다.
-                    mention_keyword = mention_text[start+1:end].strip().split('/') # /를 기준으로 나눠 리스트로 저장. 받은 멘션 내용이 [다이스/1d2] 라면 ['다이스', '1d2'] 로 저장된다.
-                    first_keyword = mention_keyword[0].strip() # 나눠 저장한 리스트가 비었으면 공란(''), 아니라면 첫번째 값을 저장한다. 위의 예시에서는 '다이스' 가 저장된다.
-
-                    ###################### 키워드 별 함수 호출. 키워드가 늘어나면 여기가 길어진다. ######################
-                    if first_keyword in keywords: # 준비된 키워드 내용(25)중에 첫번째 키워드가 있으면 (예시 : '다이스')
-                        if first_keyword == '다이스': # 첫번째 키워드가 '다이스' 라면
-                            # 다이스 굴리는 함수 호출. 매개변수로는 멘션으로 받은 키워드 (예시 : ['다이스', '1d2']) 를 넘기고, 리턴값을 keyword_action_return에 저장한다.
-                            keyword_action_return = roll_dice(mention_keyword) 
-                            
-                            if keyword_action_return != (-1, -1, -1): # 리턴값이 정상이면
+                    if 'd' in mention_text[start+1:end] or 'D' in mention_text[start+1:end]: #키워드 없는 명령어
+                        mention_keyword = mention_text[start+1:end]
+                        keyword_action_return = roll_dice(mention_keyword)
+                        if keyword_action_return != (-1, -1, -1): # 리턴값이 정상이면
                                 keyword_type = 1 # 키워드 타입 갱신
-                        
-                        elif first_keyword == '상점': # 첫번재 키워드가 '상점' 이면
-                            print('! 상점 호출 함수를 불러옵니다')
-                            keyword_type = 2
-                    #################################################################################################
+                    else: #키워드 있는 명령어
+                        mention_keyword = mention_text[start+1:end].strip().split('/') # /를 기준으로 나눠 리스트로 저장. 받은 멘션 내용이 [다이스/1d2] 라면 ['다이스', '1d2'] 로 저장된다.
+                        first_keyword = mention_keyword[0].strip() # 나눠 저장한 리스트가 비었으면 공란(''), 아니라면 첫번째 값을 저장한다. 위의 예시에서는 '다이스' 가 저장된다.
+
+                        ###################### 키워드 별 함수 호출. 키워드가 늘어나면 여기가 길어진다. ######################
+                        if first_keyword in keywords: 
+                            if first_keyword == '구매': 
+                                #구매 함수
+                                keyword_type = 2
+                            
+                            elif first_keyword == '판매': 
+                                print('! 상점 호출 함수를 불러옵니다')
+                                keyword_type = 3
+                        #################################################################################################
             
                 
                 if keyword_type != -1: # 키워드 오류가 없으면
@@ -91,8 +98,8 @@ def roll_dice(mention_keyword):
     dice_info = []
     dice_result_list = []
 
-    if len(mention_keyword) > 1: # 넘겨받은 매개변수의 길이가 1 초과라면 (예시 : ['다이스', '1d2'] 이므로 길이는 2다)
-        second_keyword = mention_keyword[1].strip() # 두번째 키워드를 보정한다. strip()은 앞뒤 공백을 지우는 함수다. (ex: ' 1d2 ' 였다면 '1d2'로 만든다)
+    if len(mention_keyword) > 2: # 넘겨받은 매개변수의 길이가 1 초과라면 (예시 : ['다이스', '1d2'] 이므로 길이는 2다)
+        second_keyword = mention_keyword.strip() # 두번째 키워드를 보정한다. strip()은 앞뒤 공백을 지우는 함수다. (ex: ' 1d2 ' 였다면 '1d2'로 만든다)
         
         if 'd' in second_keyword: # 두번째 키워드 중에 d가 있다면
             dice_info = second_keyword.split('d') # d를 기준으로 나누고 dice_info에 저장 (ex: '1d2' -> ['1', 'd', '2'])
