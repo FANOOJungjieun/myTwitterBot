@@ -19,7 +19,7 @@ api = tweepy.API(auth, wait_on_rate_limit=True)
 
 gc = gspread.service_account(filename='-') #json파일 이름
 
-wks = gc.open("-") #시트 이름
+wks = gc.open("테스트 시트") #시트 이름
 
 def select_sheet(sheet_name):
     worksheet = wks.worksheet(sheet_name)
@@ -35,7 +35,7 @@ last_reply_id = timeline_list[0].id_str
 # last_reply_id = 1 # 최근에 답장한 멘션의 id값을 저장, 이후 새로 온 멘션에만 답장한다.
 keywords = ['판매'] # 키워드
 
-#키워드 타입 1 : 주사위 2: 구매 3:판매
+#키워드 타입 1 : 주사위 2: 자판기 3:YN 
 
 # 주의!!! 리트윗과 멘션 합해서 3시간에 300개 가능
 
@@ -64,6 +64,7 @@ def check_keyword(mention_return_length, mention_return):
         keyword_type = -1 # 초기 키워드 타입. 마지막에도 -1이면 미리 지정된 키워드를 넣지 않은 사용자 오류
         reply_content = "키워드 오류입니다." # 초기 답멘 내용. 키워드 오류 때문에 다음 함수로 넘어가지 않으면 이 내용이 답멘으로 출력된다.
         keyword_action_return = ''
+        
 
         try: 
             if mention.author.id != bot_id: # 내가 보낸 멘션이 아닐때만 답멘한다
@@ -81,7 +82,11 @@ def check_keyword(mention_return_length, mention_return):
                         keyword_action_return = use_japangi(mention) # 스프레드 시트 내의 상점 데이터를 확인하고 후처리하는 함수
                         if keyword_action_return != -1: # 리턴값이 -1이 아니어야 정상이므로
                             keyword_type = 2
-
+                    elif mention_text[start+1:end] == 'yn' or mention_text[start+1:end] == 'YN':
+                        keyword_action_return = -1
+                        keyword_action_return = random.choice(["Yes", "No"])
+                        if keyword_action_return != -1: # 리턴값이 -1이 아니어야 정상이므로
+                            keyword_type = 3
                     else: #키워드 있는 명령어
                         mention_keyword = mention_text[start+1:end].strip().split('/') # /를 기준으로 나눠 리스트로 저장. 받은 멘션 내용이 [다이스/1d2] 라면 ['다이스', '1d2'] 로 저장된다.
                         first_keyword = mention_keyword[0].strip() # 나눠 저장한 리스트가 비었으면 공란(''), 아니라면 첫번째 값을 저장한다. 위의 예시에서는 '다이스' 가 저장된다.
@@ -91,7 +96,7 @@ def check_keyword(mention_return_length, mention_return):
                             if first_keyword == '판매': 
                                 keyword_action_return = use_shop(mention_keyword) # 스프레드 시트 내의 상점 데이터를 확인하고 후처리하는 함수
                                 if keyword_action_return != -1: # 리턴값이 -1이 아니어야 정상이므로
-                                    keyword_type = 3
+                                    keyword_type = 4
                         #################################################################################################
             
                 
@@ -137,16 +142,23 @@ def roll_dice(mention_keyword):
 
 # 자판기
 def use_japangi(mention):
-    worksheet = select_sheet('자판기') # 21번째 줄에서 입력한 '내 스프레드 시트 이름' 시트의 '포스팅_무료상점' 이라는 탭을 선택
+    worksheet = select_sheet('자판기') # 21번째 줄에서 입력한 '내 스프레드 시트 이름' 시트의 '자판기' 이라는 탭을 선택
     all_shop_info = worksheet.get_all_records() # 전체 데이터를 가져온다
     #pprint.pprint(all_shop_info)  
 
-    user = api.get_user(mention.user.screen_name)
+    user = api.get_user(screen_name=mention.user.screen_name) #멘션한 계정의 정보를 불러오는 함수
+    name = user.name #멘션한 계정의 정보를 불러오는 함수
+    username = name.split()
 
     randomItem = random.choice(all_shop_info)
-    pprint.pprint(user)
 
-    answer = randomItem['1'] +'을(를) 뽑았다! \n\n' +randomItem['2']
+    answer = username[0] + '은(는) ' + randomItem['1'] +'을(를) 뽑았다! \n\n' +randomItem['2']
+
+    worksheet2 = select_sheet('인벤토리')
+    row = worksheet2.find(mention.user.screen_name).row
+    value = worksheet2.acell('B'+str(row)).value
+    worksheet2.update('B'+str(row), value + ", " + randomItem['1'])
+
     return answer # 같은 아이템을 찾지 못했다면 -1 리턴
 
 #상점
@@ -168,8 +180,9 @@ def make_reply_content(type_of_keyword, keyword_action_return):
         if type_of_keyword == 1: # 키워드 타입이 다이스일 경우
             dice_results = str(keyword_action_return[2])[1:-1] # ex: [2, 6] (리스트)-> '[2, 6]' (문자열) -> '2, 6' (앞뒤 자름)
             reply_content += str(keyword_action_return[0]) +'D' + str(keyword_action_return[1]) + ' 다이스를 굴립니다. \n' + dice_results + '. 총 ' + str(sum(keyword_action_return[2])) + '입니다.'         
-        elif type_of_keyword == 2: # 키워드 타입이 자판기일 경우
+        elif type_of_keyword == 2 or type_of_keyword == 3: # 키워드 타입이 자판기거나 YN일 경우
             reply_content = keyword_action_return
+
     except:
         print('! 오류가 발생했습니다.')
         pass
