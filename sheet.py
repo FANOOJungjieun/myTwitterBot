@@ -1,9 +1,7 @@
 import gspread
 import pprint
 
-# https://docs.google.com/spreadsheets/d/1mMF5-mvGgDFztfzrJFkjYNj0l1w3YpVUxnO2a1FlUys/edit#gid=0
-
-gc = gspread.service_account(filename='my-twitter-bot-352609-f7d7849f8ef1.json') #json파일 이름
+gc = gspread.service_account(filename='-') #json파일 이름
 
 wks = gc.open("테스트 시트") #시트 이름
 
