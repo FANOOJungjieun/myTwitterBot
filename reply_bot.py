@@ -7,10 +7,10 @@ import pprint
 
 
 # 키, 토큰
-API_KEY = "-"
-API_KEY_SECRET = "-"
-USER_ACCESS_TOKEN = "-"
-USER_ACCESS_SECRET= "-"
+API_KEY = "키"
+API_KEY_SECRET = "키"
+USER_ACCESS_TOKEN = "토큰"
+USER_ACCESS_SECRET= "토큰"
 
 # OAuth1
 auth = tweepy.OAuthHandler(API_KEY, API_KEY_SECRET, 'oob') 
@@ -19,7 +19,7 @@ api = tweepy.API(auth, wait_on_rate_limit=True)
 
 gc = gspread.service_account(filename='-') #json파일 이름
 
-wks = gc.open("테스트 시트") #시트 이름
+wks = gc.open("-") #시트 이름
 
 def select_sheet(sheet_name):
     worksheet = wks.worksheet(sheet_name)
@@ -64,7 +64,6 @@ def check_keyword(mention_return_length, mention_return):
         keyword_type = -1 # 초기 키워드 타입. 마지막에도 -1이면 미리 지정된 키워드를 넣지 않은 사용자 오류
         reply_content = "키워드 오류입니다." # 초기 답멘 내용. 키워드 오류 때문에 다음 함수로 넘어가지 않으면 이 내용이 답멘으로 출력된다.
         keyword_action_return = ''
-        
 
         try: 
             if mention.author.id != bot_id: # 내가 보낸 멘션이 아닐때만 답멘한다
@@ -154,10 +153,7 @@ def use_japangi(mention):
 
     answer = username[0] + '은(는) ' + randomItem['1'] +'을(를) 뽑았다! \n\n' +randomItem['2']
 
-    worksheet2 = select_sheet('인벤토리')
-    row = worksheet2.find(mention.user.screen_name).row
-    value = worksheet2.acell('B'+str(row)).value
-    worksheet2.update('B'+str(row), value + ", " + randomItem['1'])
+    update_inventory(mention, randomItem['1'], 1)
 
     return answer # 같은 아이템을 찾지 못했다면 -1 리턴
 
@@ -170,6 +166,25 @@ def use_shop(mention_keyword):
         if (all_shop_info[i]['1']) == mention_keyword[1]: # 상점 내에 있는 아이템 이름 == 멘션으로 받은 키워드 중 두번째 키워드 라면
             return all_shop_info[i]['2'] # 그 아이템의 설명을 리턴
     return -1 # 같은 아이템을 찾지 못했다면 -1 리턴
+
+
+
+
+#인벤토리 업데이트
+
+def update_inventory(mention, values, type):
+    # 1 : 아이템 획득 2 : 아이템 판매 3 : 골드 획득 4 : 골드 판매
+    if type == 1 :
+        worksheet2 = select_sheet(mention.user.screen_name)
+        cell = worksheet2.find(values)
+        if cell is None:
+            worksheet2.append_row(values)
+            worksheet2.update('B'+str(cell.row), 1)
+        else:
+            cnt = int(worksheet2.acell('B'+str(cell.row)).value)
+            cnt += 1
+            worksheet2.update('B'+str(cell.row), cnt)
+
 
 
 # 답멘 내용 만드는 함수
