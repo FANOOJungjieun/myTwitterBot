@@ -93,7 +93,7 @@ def check_keyword(mention_return_length, mention_return):
                         ###################### 키워드 별 함수 호출. 키워드가 늘어나면 여기가 길어진다. ######################
                         if first_keyword in keywords: 
                             if first_keyword == '판매': 
-                                keyword_action_return = use_shop(mention_keyword) # 스프레드 시트 내의 상점 데이터를 확인하고 후처리하는 함수
+                                keyword_action_return = update_inventory(mention, mention_keyword[1], 2) # 스프레드 시트 내의 상점 데이터를 확인하고 후처리하는 함수
                                 if keyword_action_return != -1: # 리턴값이 -1이 아니어야 정상이므로
                                     keyword_type = 4
                         #################################################################################################
@@ -158,7 +158,7 @@ def use_japangi(mention):
     return answer # 같은 아이템을 찾지 못했다면 -1 리턴
 
 #상점
-def use_shop(mention_keyword):
+def use_shop(mention, mention_keyword):
     worksheet = select_sheet('자판기') # 21번째 줄에서 입력한 '내 스프레드 시트 이름' 시트의 '포스팅_무료상점' 이라는 탭을 선택
     all_shop_info = worksheet.get_all_records() # 전체 데이터를 가져온다
     pprint.pprint(all_shop_info)  # 데이터 확인이 쉽도록 터미널에 print 해본다. 익숙해졌다면 지워도 된다.
@@ -173,10 +173,10 @@ def use_shop(mention_keyword):
 #인벤토리 업데이트
 
 def update_inventory(mention, values, type):
+    worksheet2 = select_sheet(mention.user.screen_name)
+    cell = worksheet2.find(values)
     # 1 : 아이템 획득 2 : 아이템 판매 3 : 골드 획득 4 : 골드 판매
     if type == 1 :
-        worksheet2 = select_sheet(mention.user.screen_name)
-        cell = worksheet2.find(values)
         if cell is None:
             worksheet2.append_row(values)
             worksheet2.update('B'+str(cell.row), 1)
@@ -184,6 +184,15 @@ def update_inventory(mention, values, type):
             cnt = int(worksheet2.acell('B'+str(cell.row)).value)
             cnt += 1
             worksheet2.update('B'+str(cell.row), cnt)
+    if type == 2 :
+        cnt = int(worksheet2.acell('B'+str(cell.row)).value)
+        if cell is None or cnt == 0:
+            return values+'를(을) 소지하고 있지 않습니다.'
+        else:
+            cnt -= 1
+            worksheet2.update('B'+str(cell.row), cnt)
+            return values+'의 판매가 완료되었습니다.'
+
 
 
 
@@ -195,7 +204,7 @@ def make_reply_content(type_of_keyword, keyword_action_return):
         if type_of_keyword == 1: # 키워드 타입이 다이스일 경우
             dice_results = str(keyword_action_return[2])[1:-1] # ex: [2, 6] (리스트)-> '[2, 6]' (문자열) -> '2, 6' (앞뒤 자름)
             reply_content += str(keyword_action_return[0]) +'D' + str(keyword_action_return[1]) + ' 다이스를 굴립니다. \n' + dice_results + '. 총 ' + str(sum(keyword_action_return[2])) + '입니다.'         
-        elif type_of_keyword == 2 or type_of_keyword == 3: # 키워드 타입이 자판기거나 YN일 경우
+        elif type_of_keyword == 2 or type_of_keyword == 3 or type_of_keyword == 4: # 키워드 타입이 자판기거나 YN일 경우
             reply_content = keyword_action_return
 
     except:
