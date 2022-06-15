@@ -6,7 +6,6 @@ import gspread
 import pprint
 
 
-# 키, 토큰
 API_KEY = "키"
 API_KEY_SECRET = "키"
 USER_ACCESS_TOKEN = "토큰"
@@ -173,8 +172,14 @@ def use_shop(mention, mention_keyword):
 #인벤토리 업데이트
 
 def update_inventory(mention, values, type):
+    worksheet = select_sheet('자판기')
     worksheet2 = select_sheet(mention.user.screen_name)
     cell = worksheet2.find(values)
+    price_cell = worksheet.find(values)
+    price = int(worksheet.acell('E'+str(price_cell.row)).value)
+
+    now_money = int(worksheet2.acell('E1').value)
+
     # 1 : 아이템 획득 2 : 아이템 판매 3 : 골드 획득 4 : 골드 판매
     if type == 1 :
         if cell is None:
@@ -190,8 +195,10 @@ def update_inventory(mention, values, type):
             return values+'를(을) 소지하고 있지 않습니다.'
         else:
             cnt -= 1
+            now_money += price
             worksheet2.update('B'+str(cell.row), cnt)
-            return values+'의 판매가 완료되었습니다.'
+            worksheet2.update('E1', now_money)
+            return values+'의 판매가 완료되었습니다. \n' + '현재 소지금은 ' + str(now_money) + '골드 입니다.'
 
 
 
